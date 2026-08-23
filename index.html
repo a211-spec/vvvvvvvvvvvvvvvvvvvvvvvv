@@ -1,10 +1,345 @@
 <!DOCTYPE html>
 <html lang="uz">
 <head>
-    <meta charset="UTF-8">
-    <title>Mening Loyiham</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Rasm Tahrirlash</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background: #0f0f0f;
+      color: #fff;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 8px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 30px;
+      font-size: 15px;
+    }
+
+    .card {
+      background: #1a1a1a;
+      border-radius: 18px;
+      padding: 30px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    }
+
+    .upload-area {
+      border: 2px dashed #444;
+      border-radius: 14px;
+      padding: 50px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .upload-area:hover {
+      border-color: #666;
+      background: #222;
+    }
+
+    .upload-area.has-image {
+      padding: 20px;
+    }
+
+    .upload-area img {
+      max-width: 100%;
+      max-height: 350px;
+      border-radius: 10px;
+      display: block;
+      margin: 0 auto;
+    }
+
+    .upload-text {
+      color: #aaa;
+      font-size: 16px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 110px;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 12px;
+      color: white;
+      padding: 16px;
+      font-size: 16px;
+      resize: vertical;
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #555;
+    }
+
+    button {
+      width: 100%;
+      padding: 16px;
+      background: white;
+      color: black;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button:hover:not(:disabled) {
+      background: #e5e5e5;
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      background: #333;
+      color: #777;
+      cursor: not-allowed;
+    }
+
+    .status {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 14px;
+      color: #aaa;
+      min-height: 20px;
+    }
+
+    .result {
+      margin-top: 35px;
+      display: none;
+    }
+
+    .result-title {
+      font-size: 18px;
+      margin-bottom: 15px;
+      color: #ddd;
+    }
+
+    .images {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .image-box {
+      background: #111;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .image-box p {
+      padding: 10px 15px;
+      font-size: 13px;
+      color: #888;
+      background: #1a1a1a;
+    }
+
+    .image-box img {
+      width: 100%;
+      display: block;
+    }
+
+    @media (max-width: 600px) {
+      .images {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
-    <h1>Salom, bu mening saytim!</h1>
+  <div class="container">
+    <h1>AI Rasm Tahrirlash</h1>
+    <p class="subtitle">Rasm yuklang va nima qilishni yozing</p>
+
+    <div class="card">
+      <!-- Rasm yuklash -->
+      <div class="upload-area" id="uploadArea">
+        <p class="upload-text" id="uploadText">Rasmni bu yerga tashlang yoki bosing</p>
+        <input type="file" id="imageInput" accept="image/*" hidden>
+        <img id="preview" style="display: none;">
+      </div>
+
+      <!-- Buyruq -->
+      <textarea id="prompt" placeholder="Nima qilishni yozing...&#10;Masalan: kiyimini yech, sexy qil, terlatib qo'y, fonni o'zgartir..."></textarea>
+
+      <!-- Tugma -->
+      <button id="editBtn" disabled>Tahrirlashni boshlash</button>
+
+      <div class="status" id="status"></div>
+
+      <!-- Natija -->
+      <div class="result" id="result">
+        <div class="result-title">Natija</div>
+        <div class="images">
+          <div class="image-box">
+            <p>Original</p>
+            <img id="originalImg">
+          </div>
+          <div class="image-box">
+            <p>Tahrirlangan</p>
+            <img id="resultImg">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ====================== SOZLAMALAR ======================
+    // Bu yerga o'zingning Replicate API kalitingni yoz
+    const API_TOKEN = "r8_********************************";   // <-- SHU YERGA KALITNI QO'Y
+
+    // =======================================================
+
+    const uploadArea = document.getElementById('uploadArea');
+    const imageInput = document.getElementById('imageInput');
+    const preview = document.getElementById('preview');
+    const uploadText = document.getElementById('uploadText');
+    const promptInput = document.getElementById('prompt');
+    const editBtn = document.getElementById('editBtn');
+    const status = document.getElementById('status');
+    const result = document.getElementById('result');
+    const originalImg = document.getElementById('originalImg');
+    const resultImg = document.getElementById('resultImg');
+
+    let imageBase64 = null;
+
+    // Rasm yuklash
+    uploadArea.addEventListener('click', () => imageInput.click());
+
+    imageInput.addEventListener('change', (e) => {
+      if (e.target.files[0]) handleImage(e.target.files[0]);
+    });
+
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.style.borderColor = "#888";
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.style.borderColor = "#444";
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.style.borderColor = "#444";
+      if (e.dataTransfer.files[0]) handleImage(e.dataTransfer.files[0]);
+    });
+
+    function handleImage(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        imageBase64 = e.target.result;
+        preview.src = imageBase64;
+        preview.style.display = "block";
+        uploadText.style.display = "none";
+        uploadArea.classList.add("has-image");
+        checkReady();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    promptInput.addEventListener('input', checkReady);
+
+    function checkReady() {
+      editBtn.disabled = !(imageBase64 && promptInput.value.trim().length > 1);
+    }
+
+    // Tahrirlash
+    editBtn.addEventListener('click', async () => {
+      if (!imageBase64 || !promptInput.value.trim()) return;
+
+      if (API_TOKEN.includes("****")) {
+        status.textContent = "Avval API kalitni kodga qo'ying!";
+        return;
+      }
+
+      editBtn.disabled = true;
+      status.textContent = "Rasm tahrirlanmoqda... (15-40 soniya kutishingiz mumkin)";
+      result.style.display = "none";
+
+      try {
+        // 1. Prediction yaratish
+        const createResponse = await fetch("https://api.replicate.com/v1/predictions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Token ${API_TOKEN}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            // Bu yerga ishlatmoqchi bo'lgan model version ID sini qo'yasiz
+            version: "MODEL_VERSION_ID_HERE",
+            input: {
+              image: imageBase64,
+              prompt: promptInput.value
+              // Modelga qarab qo'shimcha parametrlar qo'shilishi mumkin
+            }
+          })
+        });
+
+        const prediction = await createResponse.json();
+
+        if (prediction.error) {
+          throw new Error(prediction.error);
+        }
+
+        // 2. Natijani kutish
+        let output = null;
+        while (!output) {
+          await new Promise(resolve => setTimeout(resolve, 2500));
+
+          const statusResponse = await fetch(prediction.urls.get, {
+            headers: {
+              "Authorization": `Token ${API_TOKEN}`
+            }
+          });
+
+          const statusData = await statusResponse.json();
+
+          if (statusData.status === "succeeded") {
+            output = statusData.output;
+          } else if (statusData.status === "failed") {
+            throw new Error("Model xatolik qaytardi");
+          }
+        }
+
+        // 3. Natijani ko'rsatish
+        originalImg.src = imageBase64;
+        resultImg.src = Array.isArray(output) ? output[0] : output;
+        result.style.display = "block";
+        status.textContent = "Tahrirlash muvaffaqiyatli yakunlandi!";
+
+      } catch (error) {
+        console.error(error);
+        status.textContent = "Xatolik: " + error.message;
+      }
+
+      editBtn.disabled = false;
+    });
+  </script>
 </body>
 </html>
